@@ -118,7 +118,7 @@ for i, batch_file in enumerate(tqdm(batch_files, desc="Processing batches")):
             local_dir=LOCAL_TEMP_DIR,
             local_dir_use_symlinks=False
         )
-        
+        print(f"\downloaded {batch_name} to {LOCAL_TEMP_DIR}")
         # The file is downloaded to LOCAL_TEMP_DIR/batches/batch_xxx.duckdb
         actual_path = os.path.join(LOCAL_TEMP_DIR, batch_file)
         
