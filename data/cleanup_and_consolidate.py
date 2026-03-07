@@ -3,6 +3,7 @@ import duckdb
 from huggingface_hub import HfApi, hf_hub_download, list_repo_files
 from tqdm import tqdm
 import os
+import time
 
 # Configuration
 HF_REPO_ID = "lalit3c/OA_Domain_Concepts"
@@ -110,6 +111,7 @@ for i, batch_file in enumerate(tqdm(batch_files, desc="Processing batches")):
     
     try:
         # Download batch file
+        _tik = time.time()
         hf_hub_download(
             repo_id=HF_REPO_ID,
             filename=batch_file,
@@ -118,7 +120,7 @@ for i, batch_file in enumerate(tqdm(batch_files, desc="Processing batches")):
             local_dir=LOCAL_TEMP_DIR,
             local_dir_use_symlinks=False
         )
-        print(f"\downloaded {batch_name} to {LOCAL_TEMP_DIR}")
+        print(f"\downloaded {batch_name} to {LOCAL_TEMP_DIR} in {time.time() - _tik:.2f} seconds")
         # The file is downloaded to LOCAL_TEMP_DIR/batches/batch_xxx.duckdb
         actual_path = os.path.join(LOCAL_TEMP_DIR, batch_file)
         
