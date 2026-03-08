@@ -34,6 +34,10 @@ df = con.execute(query).df()
 
 print("Total concepts:", len(df))
 
+# save a copy of the distribution for reference and upload to HF
+df.to_csv(PLOT_DIR / "concept_distribution.csv", index=False)
+
+
 # -------------------------
 # BASIC STATS
 # -------------------------
