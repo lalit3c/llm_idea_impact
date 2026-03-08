@@ -18,6 +18,11 @@ consolidated_files = [f for f in files if f.startswith("consolidated/") and f.en
 print(f"Found {len(consolidated_files)} consolidated files")
 
 for f in tqdm(consolidated_files):
+    # check if file already exists
+    local_path = os.path.join(LOCAL_DIR, f)
+    if os.path.exists(local_path):
+        print(f"File {f} already exists, skipping download.")
+        continue
     hf_hub_download(
         repo_id=HF_REPO_ID,
         filename=f,
