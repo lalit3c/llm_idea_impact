@@ -4,7 +4,6 @@ from huggingface_hub import HfApi, hf_hub_download, list_repo_files
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 import shutil
-import time
 
 # -------------------------------
 # Configuration
@@ -44,10 +43,6 @@ def init_consolidated_db(path: str):
             processed_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    return con
-
-def init_mapping_db(path: str):
-    con = duckdb.connect(path)
     con.execute("""
         CREATE TABLE IF NOT EXISTS concept_papers (
             concept VARCHAR,
@@ -81,19 +76,16 @@ batch_files = sorted([f for f in all_files if f.startswith("batches/") and f.end
 print(f"Found {len(batch_files)} batch files on HF")
 
 # -------------------------------
-# Initialize mapping DB
-# -------------------------------
-MAPPING_DB_PATH = os.path.join(CONSOLIDATED_DIR, "concept_mapping.duckdb")
-mapping_con = init_mapping_db(MAPPING_DB_PATH)
-
-# -------------------------------
-# Consolidation
+# Initialize consolidated DB
 # -------------------------------
 consolidated_num = 1
 current_consolidated_path = os.path.join(CONSOLIDATED_DIR, f"consolidated_{consolidated_num:04d}.duckdb")
 consolidated_con = init_consolidated_db(current_consolidated_path)
 
-BATCHES_PER_GROUP = 20  # ~5 GB per consolidated file
+# -------------------------------
+# Consolidation loop
+# -------------------------------
+BATCHES_PER_GROUP = 20  # adjust based on ~5GB target
 
 print(f"Starting consolidation (~{MAX_CONSOLIDATED_SIZE/1e9:.1f} GB per file)")
 
@@ -114,28 +106,27 @@ for i in range(0, len(batch_files), BATCHES_PER_GROUP):
     if not downloaded_paths:
         continue
 
-    # 2️⃣ ATTACH + INSERT each batch
+    # 2️⃣ Attach each batch with unique alias + insert
     for path in downloaded_paths:
         batch_name = os.path.basename(path)
+        alias = f"src_{batch_name.replace('.', '_')}"
         try:
-            consolidated_con.execute(f"ATTACH '{path}' AS src (READ_ONLY)")
+            consolidated_con.execute(f"ATTACH '{path}' AS {alias} (READ_ONLY)")
             # Insert papers
-            consolidated_con.execute("""
+            consolidated_con.execute(f"""
                 INSERT OR IGNORE INTO papers
                 SELECT id, doi, title, abstract, publication_year, publication_date,
                        type, cited_by_count, counts_by_year, num_matched_concepts, processed_date
-                FROM src.papers
+                FROM {alias}.papers
             """)
             # Insert concept mappings
-            mapping_con.execute(f"ATTACH '{path}' AS src_map (READ_ONLY)")
-            mapping_con.execute("""
+            consolidated_con.execute(f"""
                 INSERT OR IGNORE INTO concept_papers (concept, paper_id)
                 SELECT UNNEST(matched_concepts), id
-                FROM src_map.papers
+                FROM {alias}.papers
                 WHERE matched_concepts IS NOT NULL
             """)
-            consolidated_con.execute("DETACH src")
-            mapping_con.execute("DETACH src_map")
+            consolidated_con.execute(f"DETACH {alias}")
         except Exception as e:
             print(f"Error processing {batch_name}: {e}")
 
@@ -148,6 +139,7 @@ for i in range(0, len(batch_files), BATCHES_PER_GROUP):
     if get_db_size(current_consolidated_path) >= MAX_CONSOLIDATED_SIZE:
         print(f"Consolidated file {current_consolidated_path} reached size limit. Uploading...")
         consolidated_con.execute("CREATE INDEX IF NOT EXISTS idx_pub_year ON papers(publication_year)")
+        consolidated_con.execute("CREATE INDEX IF NOT EXISTS idx_concept ON concept_papers(concept)")
         consolidated_con.close()
 
         # Upload to HF
@@ -161,7 +153,7 @@ for i in range(0, len(batch_files), BATCHES_PER_GROUP):
         print(f"✓ Uploaded consolidated_{consolidated_num:04d}.duckdb")
         os.remove(current_consolidated_path)
 
-        # Start new consolidated DB
+        # Start a new consolidated DB
         consolidated_num += 1
         current_consolidated_path = os.path.join(CONSOLIDATED_DIR, f"consolidated_{consolidated_num:04d}.duckdb")
         consolidated_con = init_consolidated_db(current_consolidated_path)
@@ -171,6 +163,7 @@ for i in range(0, len(batch_files), BATCHES_PER_GROUP):
 # -------------------------------
 if get_db_size(current_consolidated_path) > 0:
     consolidated_con.execute("CREATE INDEX IF NOT EXISTS idx_pub_year ON papers(publication_year)")
+    consolidated_con.execute("CREATE INDEX IF NOT EXISTS idx_concept ON concept_papers(concept)")
     consolidated_con.close()
     api.upload_file(
         path_or_fileobj=current_consolidated_path,
@@ -181,21 +174,6 @@ if get_db_size(current_consolidated_path) > 0:
     )
     os.remove(current_consolidated_path)
     print(f"✓ Uploaded final consolidated_{consolidated_num:04d}.duckdb")
-
-# -------------------------------
-# Finalize concept mapping
-# -------------------------------
-mapping_con.execute("CREATE INDEX IF NOT EXISTS idx_concept ON concept_papers(concept)")
-mapping_con.close()
-
-api.upload_file(
-    path_or_fileobj=MAPPING_DB_PATH,
-    path_in_repo=f"{HF_CONSOLIDATED_FOLDER}/concept_mapping.duckdb",
-    repo_id=HF_REPO_ID,
-    token=HF_TOKEN,
-    repo_type="dataset"
-)
-os.remove(MAPPING_DB_PATH)
 
 # -------------------------------
 # Cleanup
