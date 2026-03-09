@@ -10,7 +10,11 @@ SAVE_DIR.mkdir(exist_ok=True)
 
 def get_consolidated_files():
     """Get all consolidated duckdb files sorted by name."""
+<<<<<<< HEAD
+    return sorted(glob.glob('dataset_local/consolidated/consolidated_*.duckdb'))
+=======
     return sorted(glob.glob('dataset_local/consolidated_*.duckdb'))
+>>>>>>> 2aeb4e2f2b5f7dc4a06a9478e66000a4883b9c85
 
 
 def create_multi_db_connection(memory_limit='4GB'):
@@ -21,7 +25,11 @@ def create_multi_db_connection(memory_limit='4GB'):
     """
     con = duckdb.connect()
 
+<<<<<<< HEAD
+    #con.execute(f"SET memory_limit='{memory_limit}'")
+=======
     con.execute(f"SET memory_limit='{memory_limit}'")
+>>>>>>> 2aeb4e2f2b5f7dc4a06a9478e66000a4883b9c85
     con.execute("SET temp_directory='dataset_local/tmp'")
     con.execute("SET preserve_insertion_order=false")  # Faster for aggregations
 
@@ -109,4 +117,8 @@ if __name__ == "__main__":
     output_path = f"{SAVE_DIR}/concept_pairs_first_cooccurrence.parquet"
     df.to_parquet(output_path, index=False)
     print(f"\nSaved to {output_path}")
+<<<<<<< HEAD
     print(df.head(10).to_string())
+=======
+    print(df.head(10).to_string())
+>>>>>>> 2aeb4e2f2b5f7dc4a06a9478e66000a4883b9c85
