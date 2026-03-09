@@ -8,8 +8,8 @@ api = HfApi()
 
 
 # configuration
-local_file = "results/concept_pairs_first_occurence.parquet"             # file on your machine
-path_in_repo = "data/datconcept_pairs_first_occurencea.parquet"      # where it will appear in the dataset repo
+local_file = "results/concept_pairs_first_cooccurrence.parquet"             # file on your machine
+path_in_repo = "data/concept_pairs_first_cooccurrence.parquet"      # where it will appear in the dataset repo
 
 api = HfApi()
 
