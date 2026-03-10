@@ -94,7 +94,7 @@ def strategy_citation_count(
     concept_filter = ""
     if concepts:
         concepts_str = ", ".join([f"'{c}'" for c in concepts])
-        concept_filter = f"WHERE cp.concept IN ({concepts_str})"
+        concept_filter = f"AND cp.concept IN ({concepts_str})"
     
     per_db_template = f"""
     SELECT 
@@ -110,7 +110,9 @@ def strategy_citation_count(
         ) AS rank_in_db
     FROM {{db}}.concept_papers cp
     INNER JOIN {{db}}.papers p ON cp.paper_id = p.id
-    {concept_filter}
+    WHERE p.title IS NOT NULL AND TRIM(p.title) != ''
+      AND p.abstract IS NOT NULL AND TRIM(p.abstract) != ''
+      {concept_filter}
     """
     
     union_query = build_union_query(db_aliases, per_db_template)
@@ -183,7 +185,7 @@ def strategy_recency_weighted(
     concept_filter = ""
     if concepts:
         concepts_str = ", ".join([f"'{c}'" for c in concepts])
-        concept_filter = f"WHERE cp.concept IN ({concepts_str})"
+        concept_filter = f"AND cp.concept IN ({concepts_str})"
     
     per_db_template = f"""
     SELECT 
@@ -197,7 +199,9 @@ def strategy_recency_weighted(
         COALESCE(p.cited_by_count, 0) * EXP(-{decay_factor} * ({current_year} - COALESCE(p.publication_year, {current_year}))) AS weighted_score
     FROM {{db}}.concept_papers cp
     INNER JOIN {{db}}.papers p ON cp.paper_id = p.id
-    {concept_filter}
+    WHERE p.title IS NOT NULL AND TRIM(p.title) != ''
+      AND p.abstract IS NOT NULL AND TRIM(p.abstract) != ''
+      {concept_filter}
     """
     
     union_query = build_union_query(db_aliases, per_db_template)
@@ -269,7 +273,7 @@ def strategy_temporal_diversity(
     concept_filter = ""
     if concepts:
         concepts_str = ", ".join([f"'{c}'" for c in concepts])
-        concept_filter = f"WHERE cp.concept IN ({concepts_str})"
+        concept_filter = f"AND cp.concept IN ({concepts_str})"
     
     per_db_template = f"""
     SELECT 
@@ -285,8 +289,10 @@ def strategy_temporal_diversity(
         ) AS time_bucket
     FROM {{db}}.concept_papers cp
     INNER JOIN {{db}}.papers p ON cp.paper_id = p.id
-    {concept_filter}
     WHERE p.publication_year IS NOT NULL
+      AND p.title IS NOT NULL AND TRIM(p.title) != ''
+      AND p.abstract IS NOT NULL AND TRIM(p.abstract) != ''
+      {concept_filter}
     """
     
     union_query = build_union_query(db_aliases, per_db_template)
@@ -380,7 +386,10 @@ def strategy_coverage_diversity(
         ) AS breadth_tier  -- 1=narrow, 2=medium, 3=broad
     FROM {{db}}.concept_papers cp
     INNER JOIN {{db}}.papers p ON cp.paper_id = p.id
-    WHERE p.cited_by_count IS NOT NULL {concept_filter}
+    WHERE p.cited_by_count IS NOT NULL
+      AND p.title IS NOT NULL AND TRIM(p.title) != ''
+      AND p.abstract IS NOT NULL AND TRIM(p.abstract) != ''
+      {concept_filter}
     """
     
     union_query = build_union_query(db_aliases, per_db_template)
@@ -460,7 +469,7 @@ def strategy_hybrid(
     concept_filter = ""
     if concepts:
         concepts_str = ", ".join([f"'{c}'" for c in concepts])
-        concept_filter = f"WHERE cp.concept IN ({concepts_str})"
+        concept_filter = f"AND cp.concept IN ({concepts_str})"
     
     per_db_template = f"""
     SELECT 
@@ -473,7 +482,9 @@ def strategy_hybrid(
         COALESCE(p.num_matched_concepts, 1) AS num_matched_concepts
     FROM {{db}}.concept_papers cp
     INNER JOIN {{db}}.papers p ON cp.paper_id = p.id
-    {concept_filter}
+    WHERE p.title IS NOT NULL AND TRIM(p.title) != ''
+      AND p.abstract IS NOT NULL AND TRIM(p.abstract) != ''
+      {concept_filter}
     """
     
     union_query = build_union_query(db_aliases, per_db_template)
@@ -561,7 +572,7 @@ def strategy_random(
     concept_filter = ""
     if concepts:
         concepts_str = ", ".join([f"'{c}'" for c in concepts])
-        concept_filter = f"WHERE cp.concept IN ({concepts_str})"
+        concept_filter = f"AND cp.concept IN ({concepts_str})"
     
     # Use DuckDB's SAMPLE or ROW_NUMBER with random ordering
     # setseed() ensures reproducibility across the query
@@ -576,7 +587,9 @@ def strategy_random(
         RANDOM() AS rand_val
     FROM {{db}}.concept_papers cp
     INNER JOIN {{db}}.papers p ON cp.paper_id = p.id
-    {concept_filter}
+    WHERE p.title IS NOT NULL AND TRIM(p.title) != ''
+      AND p.abstract IS NOT NULL AND TRIM(p.abstract) != ''
+      {concept_filter}
     """
     
     union_query = build_union_query(db_aliases, per_db_template)
