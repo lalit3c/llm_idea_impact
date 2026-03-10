@@ -44,7 +44,7 @@ def create_multi_db_connection(data_dir: str = 'dataset_local', memory_limit: st
     os.makedirs(f'{data_dir}/tmp', exist_ok=True)
     
     con = duckdb.connect()
-    con.execute(f"SET memory_limit='{memory_limit}'")
+#    con.execute(f"SET memory_limit='{memory_limit}'")
     con.execute(f"SET temp_directory='{data_dir}/tmp'")
     con.execute("SET preserve_insertion_order=false")
     
@@ -684,7 +684,7 @@ def process_incrementally(
         
         # Process single file
         con = duckdb.connect()
-        con.execute("SET memory_limit='4GB'")
+ #       con.execute("SET memory_limit='4GB'")
         con.execute(f"SET temp_directory='{data_dir}/tmp'")
         con.execute(f"ATTACH '{filepath}' AS db (READ_ONLY)")
         
