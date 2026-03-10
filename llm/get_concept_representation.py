@@ -19,7 +19,7 @@ import pandas as pd
 # Paths
 SCRIPT_DIR = Path(__file__).parent
 PROJECT_ROOT = SCRIPT_DIR.parent
-DATASET_DIR = PROJECT_ROOT / "dataset_local"
+DATASET_DIR = PROJECT_ROOT / "dataset_local/consolidated"
 RESULTS_DIR = PROJECT_ROOT / "results"
 
 INPUT_FILE = DATASET_DIR / "representative_papers_citation_k100.parquet"
