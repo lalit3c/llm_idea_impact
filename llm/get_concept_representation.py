@@ -24,6 +24,7 @@ RESULTS_DIR = PROJECT_ROOT / "results"
 
 INPUT_FILE = DATASET_DIR / "representative_papers_citation_k100.parquet"
 OUTPUT_FILE = RESULTS_DIR / "concept_summaries_citation_k100.json"
+RAW_RESPONSE_OUTPUT_FILE = RESULTS_DIR / "raw_llm_responses_citation_k100.json"
 OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 
@@ -70,9 +71,9 @@ def build_prompt_for_concept(concept: str, papers: list, n_papers: int=100) -> s
     # Build paper context - include title and abstract
     paper_context = []
     for i, paper in enumerate(papers[:n_papers], 1):  # Limit to top n_papers to avoid context overflow
-        paper_str = f"Paper {i}:\n  Title: {paper['title']}"
+        paper_str = f"Paper {i}:\n  Title: {paper['title'][:500]}"  # Truncate title to 500 chars if needed
         if paper['abstract']:
-            paper_str += f"\n  Abstract: {paper['abstract']}"
+            paper_str += f"\n  Abstract: {paper['abstract'][:10000]}"  # Truncate abstract to 10k chars if needed
         if paper['year']:
             paper_str += f"\n  Year: {paper['year']}"
         paper_str += f"\n  Citations: {paper['citations']}"
@@ -161,9 +162,9 @@ def run_inference(conversations: list, concepts: list) -> list:
         dtype="bfloat16",
         gpu_memory_utilization=0.92,
         trust_remote_code=True,
-        max_num_seqs=128,
-        max_num_batched_tokens=16384,
-        max_model_len=4096,
+        max_num_seqs=64,
+        max_num_batched_tokens=131072,
+        max_model_len=65536,
     )
     
     load_secs = (datetime.now() - t0).total_seconds()
@@ -209,9 +210,13 @@ def run_inference(conversations: list, concepts: list) -> list:
     # Process results
     results = []
     ok, fail = 0, 0
-    
+    raw_ouptputs = []
     for i, (output, concept) in enumerate(zip(outputs, concepts)):
-        parsed = extract_json(output.outputs[0].text)
+        raw_text = output.outputs[0].text
+        raw_ouptputs.append({
+            "concept": concept,
+            "raw_response": raw_text})
+        parsed = extract_json(raw_text)
         if "error" in parsed:
             fail += 1
         else:
@@ -226,8 +231,7 @@ def run_inference(conversations: list, concepts: list) -> list:
         })
     
     print(f"  JSON parse: {ok} ok / {fail} failed")
-    
-    return results, {
+    stats = {
         "total_tokens_generated": total_tokens,
         "generation_seconds": round(gen_secs, 2),
         "tokens_per_second": round(tps, 1),
@@ -237,6 +241,7 @@ def run_inference(conversations: list, concepts: list) -> list:
         "json_parse_ok": ok,
         "json_parse_failed": fail,
     }
+    return results, stats, raw_ouptputs
 
 
 def main():
@@ -255,7 +260,7 @@ def main():
     conversations, concepts = build_conversations(concept_papers)
     
     # Run inference
-    results, stats = run_inference(conversations, concepts)
+    results, stats, raw_outputs = run_inference(conversations, concepts)
     
     # Save results
     output_data = {
@@ -269,7 +274,11 @@ def main():
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         json.dump(output_data, f, indent=2, ensure_ascii=False)
     
+    with open(RAW_RESPONSE_OUTPUT_FILE, "w", encoding="utf-8") as f:
+        json.dump(raw_outputs, f, indent=2, ensure_ascii=False)
+    
     print(f"[{datetime.now():%H:%M:%S}] Saved results to {OUTPUT_FILE}")
+    print(f"[{datetime.now():%H:%M:%S}] Saved raw responses to {RAW_RESPONSE_OUTPUT_FILE}")
     
     # # Also save a simplified CSV for easy viewing
     # csv_output = RESULTS_DIR / "concept_summaries.csv"
