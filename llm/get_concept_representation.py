@@ -23,7 +23,7 @@ DATASET_DIR = PROJECT_ROOT / "dataset_local/consolidated"
 RESULTS_DIR = PROJECT_ROOT / "results"
 
 INPUT_FILE = DATASET_DIR / "representative_papers_citation_k100.parquet"
-OUTPUT_FILE = RESULTS_DIR / "concept_summaries_citation_k100.json"
+OUTPUT_FILE = RESULTS_DIR / "concept_summaries_citation_k10.json"
 OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 
@@ -63,7 +63,7 @@ def prepare_concept_data(df: pd.DataFrame) -> dict:
     return concept_papers
 
 
-def build_prompt_for_concept(concept: str, papers: list, n_papers: int=100) -> str:
+def build_prompt_for_concept(concept: str, papers: list, n_papers: int=10) -> str:
     """
     Build a prompt for the LLM to summarize a concept based on its representative papers.
     """
@@ -161,9 +161,9 @@ def run_inference(conversations: list, concepts: list) -> list:
         dtype="bfloat16",
         gpu_memory_utilization=0.92,
         trust_remote_code=True,
-        max_num_seqs=128,
-        max_num_batched_tokens=16384,
-        max_model_len=4096,
+        max_num_seqs=64,
+        max_num_batched_tokens=131072,
+        max_model_len=65536,
     )
     
     load_secs = (datetime.now() - t0).total_seconds()
