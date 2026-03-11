@@ -8,8 +8,8 @@ api = HfApi()
 
 
 # configuration
-local_file = "dataset_local/consolidated/representative_papers_citation_k100.parquet"             # file on your machine
-path_in_repo = "data/representative_papers_citation_k100.parquet"      # where it will appear in the dataset repo
+local_file = "results/concept_summaries_citation_k10.json"             # file on your machine
+path_in_repo = "data/concept_summaries_citation_k10.json"      # where it will appear in the dataset repo
 
 api = HfApi()
 
