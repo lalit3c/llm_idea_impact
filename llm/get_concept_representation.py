@@ -64,7 +64,7 @@ def prepare_concept_data(df: pd.DataFrame) -> dict:
     return concept_papers
 
 
-def build_prompt_for_concept(concept: str, papers: list, n_papers: int=100) -> str:
+def build_prompt_for_concept(concept: str, papers: list, n_papers: int=10) -> str:
     """
     Build a prompt for the LLM to summarize a concept based on its representative papers.
     """
@@ -165,6 +165,7 @@ def run_inference(conversations: list, concepts: list) -> list:
         max_num_seqs=64,
         max_num_batched_tokens=131072,
         max_model_len=65536,
+
     )
     
     load_secs = (datetime.now() - t0).total_seconds()
